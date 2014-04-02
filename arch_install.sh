@@ -6,7 +6,7 @@ DEST=/mnt
 DEVICE=/dev/sda
 PARTION=1
 TZ=America/Los_Angeles
-KEYMAP=en-dvorak
+KEYMAP=dvorak
 
 usage() {
 	echo "arch_install.sh init|config|networking|boot_loader"

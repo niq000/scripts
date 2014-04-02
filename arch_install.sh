@@ -35,7 +35,7 @@ echo "KEYMAP=$KEYMAP" > /etc/vconsole.conf
 mkinitcpio -p linux
 
 #set root password
-echo "Create your root password\n"
+echo "Create your root password"
 passwd
 
 #set networking

@@ -12,6 +12,40 @@ usage() {
 	echo "arch_install.sh init|config|networking|boot_loader"
 }
 
+btrfs_init() {
+	#make 100MB boot partition
+	#use the rest of the drive for btrfs
+
+	#format partitions
+	mkfs.ext4 /dev/sda1
+	mkfs.btrfs -L Arch /dev/sda2
+	
+	#mount btrfs to /mnt
+	mount /dev/sda2 $DEST
+	cd $DEST
+
+	#create subvolume for root
+	btrfs subvolume create root
+
+	#create subvolume for home
+	btrfs subvolume create home
+	cd ~
+	umount $DEST
+
+	#mount root volume to /mnt
+	mount -o noatime,compress=lzo,discard,autodefrag,subvol=root /dev/sda2 $DEST
+	mkdir $DEST/boot
+	mount /dev/sda1 $DEST/boot
+
+	mkdir $DEST/home
+	mount -o noatime,compress=lzo,discard,autodefrag,subvol=home /dev/sda2 $DEST/home
+
+	pacstrap $DEST base
+	genfstab -p $DEST >> $DEST/etc/fstab
+	arch-chroot $DEST
+	
+}
+
 init() {
 	#mount the partition
 	mount $DEVICE$PARTITION $DEST

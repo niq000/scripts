@@ -1,27 +1,41 @@
 #/bin/bash
 # Used to install arch somewhat automatically
 
-HOSTNAME=ArchLinux
+HOSTNAME=ArchVM
 DEST=/mnt
 DEVICE=/dev/sda
-PARTION=1
 TZ=America/Los_Angeles
 KEYMAP=dvorak
+PASSWORD=abc123!
 
 usage() {
 	echo "arch_install.sh init|config|networking|boot_loader"
 }
 
+format() {
+	echo "##### Formating Disk $DEVICE\n"
+	#Format the disk
+	#create a boot partition, a swap partition
+	#and a 3rd parition for all the data
+	parted -s $DEVICE \
+	mklabel msdos \
+	mkpart primary ext2 1 100M \
+	mkpart primary linux-swap 100M 116M \
+	mkpart primary ext4 116M 100% \
+	set 1 boot on
+}
+
 btrfs_init() {
-	#make 100MB boot partition
-	#use the rest of the drive for btrfs
+	echo "##### BTRFS INIT\n"
+	mkswap /dev/sda2
+	swapon /dev/sda2
 
 	#format partitions
-	mkfs.ext4 /dev/sda1
-	mkfs.btrfs -L Arch /dev/sda2
+	mkfs.ext2 /dev/sda1
+	mkfs.btrfs -L Arch /dev/sda3
 	
 	#mount btrfs to /mnt
-	mount /dev/sda2 $DEST
+	mount /dev/sda3 $DEST
 	cd $DEST
 
 	#create subvolume for root
@@ -33,32 +47,29 @@ btrfs_init() {
 	umount $DEST
 
 	#mount root volume to /mnt
-	mount -o noatime,compress=lzo,discard,autodefrag,subvol=root /dev/sda2 $DEST
+	mount -o noatime,compress=lzo,discard,autodefrag,subvol=root /dev/sda3 $DEST
 	mkdir $DEST/boot
 	mount /dev/sda1 $DEST/boot
 
 	mkdir $DEST/home
-	mount -o noatime,compress=lzo,discard,autodefrag,subvol=home /dev/sda2 $DEST/home
-
-	pacstrap $DEST base
-	genfstab -p $DEST >> $DEST/etc/fstab
-	arch-chroot $DEST
-	
+	mount -o noatime,compress=lzo,discard,autodefrag,subvol=home /dev/sda3 $DEST/home
 }
 
 init() {
-	#mount the partition
-	mount $DEVICE$PARTITION $DEST
-	
+	echo "##### INIT\n"
 	#install the base system
 	pacstrap $DEST base
 	
 	#configure the system
 	genfstab -p $DEST >> $DEST/etc/fstab
-	arch-chroot $DEST
+
+  cp $0 /mnt/root/arch_install.sh
+	arch-chroot $DEST /root/arch_install.sh config
 }
 
 config() {
+	echo "##### CONFIG\n"
+
 	#set the hostname
 	echo $HOSTNAME > /etc/hostname
 	
@@ -77,13 +88,18 @@ config() {
 	mkinitcpio -p linux
 	
 	#set root password
-	echo "Create your root password"
-	passwd
+  echo -en "$PASSWORD\n$PASSWORD" | passwd
+
+	networking
+	boot_loader
 }
 
 #set networking
 networking() {
-	echo "##### Networking"
+	echo "##### NETWORKING\n"
+
+  # @todo: add some logic here for wifi-related packages/config
+
 	ETH=$(ls /sys/class/net | grep enp)
 	echo "Trying to enable dhcpcd for interface: $ETH"
 	systemctl enable dhcpcd@$ETH
@@ -91,11 +107,36 @@ networking() {
 
 #set boot loader stuff (GRUB)
 boot_loader() {
-	echo "##### Bootloader"
+	echo "##### BOOTLOADER\n"
 	pacman --noconfirm -S grub
-	grub-install --target=i386-pc --recheck --debug $DEVICE
+	grub-install --target=i386-pc --recheck $DEVICE
 	grub-mkconfig -o /boot/grub/grub.cfg
 }
+
+# install aura
+aura() {
+  #install aura from aur
+  curl https://aur.archlinux.org/packages/au/aura-bin/aura-bin.tar.gz | tar xfz -
+  cd aura-bin
+  makepkg -si --noconfirm --asroot
+  cd .. 
+  rm -rf aura-bin/
+}
+
+# install essential packages
+pkgs() { 
+  PKGS="base-devel vim git"
+  pacman -S --noconfirm $PKGS
+}
+
+setup() {
+	format
+	btrfs_init
+	init
+  pkgs
+  aura
+}
+
 
 if [ "$1" == "" ]; then
 	usage

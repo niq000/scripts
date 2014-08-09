@@ -20,8 +20,8 @@ format() {
 	parted -s $DEVICE \
 	mklabel msdos \
 	mkpart primary ext2 1 100M \
-	mkpart primary linux-swap 100M 116M \
-	mkpart primary ext4 116M 100% \
+	mkpart primary linux-swap 100M 16000M \
+	mkpart primary ext4 16000M 100% \
 	set 1 boot on
 }
 

@@ -20,8 +20,8 @@ format() {
 	parted -s $DEVICE \
 	mklabel msdos \
 	mkpart primary ext2 1 100M \
-	mkpart primary linux-swap 100M 16000M \
-	mkpart primary ext4 16000M 100% \
+	mkpart primary linux-swap 100M 1600M \
+	mkpart primary ext4 1600M 100% \
 	set 1 boot on
 }
 
@@ -125,7 +125,7 @@ aura() {
 
 # install essential packages
 pkgs() { 
-  PKGS="base-devel vim git"
+  PKGS="base-devel git salt"
   pacman -S --noconfirm $PKGS
 }
 
@@ -135,6 +135,14 @@ setup() {
 	init
   pkgs
   aura
+}
+
+salt_cfg() {
+	sed -i 's/#file_client: remote/file_client: local/g' /etc/salt/minion
+  systemctl enable salt-minion
+  cd /srv && git clone https://github.com/niq000/salt_arch.git
+  mv arch_salt salt/
+  salt-call --local state.highstate
 }
 
 

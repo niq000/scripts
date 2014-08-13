@@ -92,6 +92,9 @@ config() {
 
 	networking
 	boot_loader
+  pkgs
+  aura
+  salt_cfg
 }
 
 #set networking

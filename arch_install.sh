@@ -21,8 +21,8 @@ partition() {
 	parted -s $DEVICE \
 	mklabel msdos \
 	mkpart primary ext2 1 100M \
-	mkpart primary linux-swap 100M 1600M \
-	mkpart primary ext4 1600M 100% \
+	mkpart primary linux-swap 100M 8000M \
+	mkpart primary ext4 8000M 100% \
 	set 1 boot on
 }
 

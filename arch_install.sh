@@ -9,10 +9,11 @@ KEYMAP=dvorak
 PASSWORD=abc123!
 
 usage() {
-	echo "arch_install.sh init|config|networking|boot_loader"
+	echo "arch_install.sh setup"
 }
 
-format() {
+#partition the hard disk into 3 partitions, boot, swap and main.
+partition() {
 	echo "##### Formating Disk $DEVICE\n"
 	#Format the disk
 	#create a boot partition, a swap partition
@@ -25,13 +26,24 @@ format() {
 	set 1 boot on
 }
 
-btrfs_init() {
-	echo "##### BTRFS INIT\n"
+#setup the swap partition
+function swap() {
 	mkswap /dev/sda2
 	swapon /dev/sda2
+}
 
-	#format partitions
+#setup and mount the boot partition. Needs to be called after the btrfs_init() function
+function boot() {
 	mkfs.ext2 /dev/sda1
+	mkdir $DEST/boot
+	mount /dev/sda1 $DEST/boot
+}
+
+#initialize the btrfs volumes and mount them to prepare for OS installation.
+btrfs_init() {
+	echo "##### BTRFS INIT\n"
+
+	#format partition
 	mkfs.btrfs -L Arch /dev/sda3
 	
 	#mount btrfs to /mnt
@@ -48,15 +60,19 @@ btrfs_init() {
 
 	#mount root volume to /mnt
 	mount -o noatime,compress=lzo,discard,autodefrag,subvol=root /dev/sda3 $DEST
-	mkdir $DEST/boot
-	mount /dev/sda1 $DEST/boot
 
+  #mount home volume to /mnt/home
 	mkdir $DEST/home
 	mount -o noatime,compress=lzo,discard,autodefrag,subvol=home /dev/sda3 $DEST/home
 }
 
 init() {
 	echo "##### INIT\n"
+
+  swap
+  btrfs_init
+  boot
+
 	#install the base system
 	pacstrap $DEST base
 	
@@ -67,6 +83,7 @@ init() {
 	arch-chroot $DEST /root/arch_install.sh config
 }
 
+#handle all the system configuration stuff. Setting the hostname, timezone, etc...
 config() {
 	echo "##### CONFIG\n"
 
@@ -126,20 +143,21 @@ aura() {
   rm -rf aura-bin/
 }
 
-# install essential packages
+# install essential packages to finish configuring the system.
 pkgs() { 
   PKGS="base-devel git salt"
   pacman -S --noconfirm $PKGS
 }
 
+# This function is used to install everything. You should only need to run this
+# function, unless you are testing the other functions independently.
 setup() {
-	format
-	btrfs_init
+	partition
 	init
-  pkgs
-  aura
 }
 
+# Install and configure salt for masterless mode. Then run state.highstate to
+# finish setting things up.
 salt_cfg() {
 	sed -i 's/#file_client: remote/file_client: local/g' /etc/salt/minion
   systemctl enable salt-minion

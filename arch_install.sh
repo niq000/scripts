@@ -140,7 +140,7 @@ setup() {
 salt_cfg() {
 	sed -i 's/#file_client: remote/file_client: local/g' /etc/salt/minion
   systemctl enable salt-minion
-  cd /srv && git clone https://github.com/niq000/salt_arch.git
+  cd /srv && git clone https://github.com/niq000/arch_salt.git
   mv arch_salt salt/
   salt-call --local state.highstate
 }
